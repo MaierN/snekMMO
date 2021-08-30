@@ -1,0 +1,7 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#define CONFIG_DISPLAY_WIDTH 20
+#define CONFIG_DISPLAY_HEIGHT 10
+
+#endif
