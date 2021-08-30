@@ -25,7 +25,7 @@ void snake_control_direction(snake_t *this, snake_direction_t direction);
 void snake_step(snake_t *this);
 void snake_display(snake_t *this);
 void snake_extend(snake_t *this);
-bool snake_is_game_over(snake_t *this);
-bool snake_is_on_point(snake_t *this, point_t *point);
+bool snake_is_game_over(snake_t *this, int slot);
+bool snake_is_on_point(snake_t *this, point_t *point, bool ignore_head);
 
 #endif

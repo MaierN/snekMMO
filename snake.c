@@ -2,9 +2,11 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "display.h"
 #include "config.h"
+#include "server/server.h"
 
 static bool is_opposite_direction(snake_direction_t a, snake_direction_t b) {
     if (b < a) {
@@ -57,6 +59,7 @@ void snake_step(snake_t *this) {
     if (this->direction == SNAKE_DIRECTION_RIGHT) head->x++;
     if (this->direction == SNAKE_DIRECTION_LEFT) head->x--;
     this->last_direction = this->direction;
+    printf("new head: %d %d\n", head->x, head->y);
 }
 
 void snake_display(snake_t *this) {
@@ -70,22 +73,23 @@ void snake_extend(snake_t *this) {
     this->extend = true;
 }
 
-bool snake_is_game_over(snake_t *this) {
+bool snake_is_game_over(snake_t *this, int slot) {
     point_t *head = (point_t *)vector_get(&this->segments, 0);
     if (head->x == 0 || head->y == 0 || head->x == CONFIG_DISPLAY_WIDTH-1 || head->y == CONFIG_DISPLAY_HEIGHT-1) {
         return true;
     }
-    for (int i = vector_size(&this->segments)-1; i > 0; i--) {
-        point_t *curr = (point_t *)vector_get(&this->segments, i);
-        if (head->x == curr->x && head->y == curr->y) {
+    for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
+        if (!server_clients[i].active) continue;
+        if (snake_is_on_point(&server_clients[i].snake, head, slot == i)) {
+            printf("found point on slot %d, slot was %d...\n", i, slot);
             return true;
         }
     }
     return false;
 }
 
-bool snake_is_on_point(snake_t *this, point_t *point) {
-    for (int i = vector_size(&this->segments)-1; i >= 0; i--) {
+bool snake_is_on_point(snake_t *this, point_t *point, bool ignore_head) {
+    for (int i = vector_size(&this->segments)-1; i >= ignore_head ? 1 : 0; i--) {
         point_t *curr = (point_t *)vector_get(&this->segments, i);
         if (point->x == curr->x && point->y == curr->y) {
             return true;
