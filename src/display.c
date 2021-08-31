@@ -27,12 +27,16 @@ void display_render_game(server_client_t *clients, point_t *apple) {
             } else {
                 point_t curr = {.x=c, .y=r};
                 bool is_snake = false;
+                bool is_self = false;
                 for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
                     if (!clients[i].active) continue;
-                    if (snake_is_on_point(&clients[i].snake, &curr, false)) is_snake = true;
+                    if (snake_is_on_point(&clients[i].snake, &curr, false)) {
+                        is_snake = true;
+                        if (clients[i].is_self) is_self = true;
+                    }
                 }
                 if (is_snake) {
-                    display_write(c, r, "x");
+                    display_write(c, r, is_self ? "+" : "x");
                 } else if (c == apple->x && r == apple->y) {
                     display_write(c, r, "o");
                 } else {

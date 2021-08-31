@@ -31,18 +31,18 @@ static void client_message_callback(uint8_t *buf, size_t size, void *arg) {
 
     if (buf[0] == 0) {
         uint8_t r_slot = buf[1];
-        point_t *head = (point_t *)(buf + 2);
-        printf("head of %d at %d,%d\n", r_slot, head->x, head->y);
+        bool is_self = buf[2];
 
-        int n = (size - 2) / sizeof(point_t);
+        int n = (size - 3) / sizeof(point_t);
 
         vector_clear(&client_snakes[r_slot].snake.segments);
         for (int i = 0; i < n; i++) {
             point_t *point = (point_t *)malloc(sizeof(point_t));
-            *point = *((point_t *)(buf + 2) + i);
+            *point = *((point_t *)(buf + 3) + i);
             vector_append(&client_snakes[r_slot].snake.segments, point);
         }
         client_snakes[r_slot].active = true;
+        client_snakes[r_slot].is_self = is_self;
     } else if (buf[0] == 1) {
         point_t *apple = ((point_t *)(buf + 1));
 
@@ -64,31 +64,34 @@ static void *client_input_thread_run(void *vargp) {
     uint8_t buf[CLIENT_BUF_SEND_SIZE];
 
     while (running) {
-        buf[0] = 0xff;
+        *(uint16_t *)buf = 3;
+        buf[2] = 0xff;
 
         char c = getchar();
         if (c == 27) {
             getchar();
             c = getchar();
-            if (c == 65) buf[0] = SNAKE_DIRECTION_UP;
-            if (c == 66) buf[0] = SNAKE_DIRECTION_DOWN;
-            if (c == 67) buf[0] = SNAKE_DIRECTION_RIGHT;
-            if (c == 68) buf[0] = SNAKE_DIRECTION_LEFT;
+            if (c == 65) buf[2] = SNAKE_DIRECTION_UP;
+            if (c == 66) buf[2] = SNAKE_DIRECTION_DOWN;
+            if (c == 67) buf[2] = SNAKE_DIRECTION_RIGHT;
+            if (c == 68) buf[2] = SNAKE_DIRECTION_LEFT;
         }
         if (c == 'q') {
             running = false;
         }
 
-        if (buf[0] != 0xff) {
-            utils_err_check(write(sockfd, buf, 1), "failed write");
+        if (buf[2] != 0xff) {
+            utils_err_check(write(sockfd, buf, 3), "failed write");
         }
     }
     return NULL;
 }
 
-
 void client_handle_messages(int fd, client_message_callback_t callback, client_close_callback_t close_callback, void *arg) {
     uint8_t buf[CLIENT_BUF_RECV_SIZE];
+
+    int received_size = 0;
+    uint8_t *received_data = (uint8_t *)malloc(1);
 
     struct pollfd pfd;
 	pfd.fd = fd;
@@ -111,8 +114,28 @@ void client_handle_messages(int fd, client_message_callback_t callback, client_c
                     close_callback(arg);
                     break;
                 }
-                //printf("message (%d) %ld bytes: %.*s\n", fd, size, (int)size, buf);
-                callback(buf, size, arg);
+
+                received_data = realloc(received_data, received_size + size);
+
+                for (int i = 0; i < size; i++) {
+                    received_data[i + received_size] = buf[i];
+                }
+                received_size += size;
+
+                while (received_size >= 2) {
+                    uint16_t expected_size = *(uint16_t *)received_data;
+                    if (expected_size < 2) break;
+                    if (received_size >= expected_size) {
+                        callback(received_data + 2, expected_size - 2, arg);
+
+                        received_size -= expected_size;
+                        for (int i = 0; i < received_size; i++) {
+                            received_data[i] = received_data[i + expected_size];
+                        }
+                    } else {
+                        break;
+                    }
+                }
             }
         }
     }

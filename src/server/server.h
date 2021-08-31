@@ -12,6 +12,7 @@ typedef struct {
     bool active;
     int clifd;
     snake_t snake;
+    bool is_self;
 } server_client_t;
 
 server_client_t server_clients[SERVER_MAX_CLIENTS];

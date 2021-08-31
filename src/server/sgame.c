@@ -31,31 +31,34 @@ void sgame_render_all() {
     for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
         if (!server_clients[i].active) continue;
 
-        size = sizeof(point_t) * vector_size(&server_clients[i].snake.segments) + 2;
+        size = sizeof(point_t) * vector_size(&server_clients[i].snake.segments) + 2 + 2 + 1;
         buf = realloc(buf, size);
 
         for (int j = 0; j < SERVER_MAX_CLIENTS; j++) {
             if (!server_clients[j].active) continue;
 
-            buf[0] = 0;
-            buf[1] = j;
+            *(uint16_t *)buf = size;
+            buf[2] = 0;
+            buf[3] = i;
+            buf[4] = i == j;
 
             for (size_t s = 0; s < vector_size(&server_clients[i].snake.segments); s++) {
-                *(((point_t *)(buf + 2)) + s) = *(point_t *)vector_get(&server_clients[i].snake.segments, s);
+                *(((point_t *)(buf + 2 + 2 + 1)) + s) = *(point_t *)vector_get(&server_clients[i].snake.segments, s);
             }
 
             utils_err_check_no_exit(write(server_clients[j].clifd, buf, size), "failed write");
         }
     }
 
-    size = sizeof(point_t) + 1;
+    size = sizeof(point_t) + 1 + 2;
     buf = realloc(buf, size);
 
     for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
         if (!server_clients[i].active) continue;
 
-        buf[0] = 1;
-        *((point_t *)(buf + 1)) = apple;
+        *(uint16_t *)buf = size;
+        buf[2] = 1;
+        *((point_t *)(buf + 1 + 2)) = apple;
 
         utils_err_check_no_exit(write(server_clients[i].clifd, buf, size), "failed write");
     }
