@@ -28,9 +28,13 @@ static void *sgame_thread_run(void *vargp) {
             server_msg_t *msg = queue_dequeue(&server_queue_in);
             printf("sgame got message from %d:", msg->slot);
             for (uint32_t i = 0; i < msg->size; i++) {
-                printf(" %02X", msg->buf[i]);
+                printf(" %d", msg->buf[i]);
             }
             printf("\n");
+            if (msg->size == 0) continue;
+            uint8_t dir = msg->buf[0];
+            if (dir >= SNAKE_DIRECTION_N) continue;
+            snake_control_direction(&server_clients[msg->slot].snake, dir);
         }
 
         for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
@@ -59,6 +63,9 @@ static void *sgame_thread_run(void *vargp) {
             if (!server_clients[i].active) continue;
             if (snake_is_on_point(&server_clients[i].snake, &apple, false)) {
                 snake_extend(&server_clients[i].snake);
+                for (int i = 0; i < 5; i++) {
+                    printf("%d extending...\n", i);
+                }
 
                 bool apple_ok = false;
 

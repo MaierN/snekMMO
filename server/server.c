@@ -13,21 +13,14 @@
 
 #include "../queue.h"
 #include "sgame.h"
+#include "../utils.h"
 
-#define SERVER_PORT 21337
 #define SERVER_BUF_SIZE 1024
 
 typedef struct {
     int clifd;
     int slot;
 } server_thread_args;
-
-static void err_check(int status, char *msg) {
-    if (status == -1) {
-        printf("%s (errno %d)\n", msg, errno);
-        exit(1);
-    }
-}
 
 static void *server_thread_run(void *vargp) {
     server_thread_args *args = (server_thread_args *)vargp;
@@ -39,7 +32,7 @@ static void *server_thread_run(void *vargp) {
 	pfd.revents = 0;
 	while (true) {
         int status = poll(&pfd, 1, 100);
-        err_check(status, "failed socket poll");
+        utils_err_check(status, "failed socket poll");
 		if (status > 0) {
             if (recv(args->clifd, buf, sizeof(buf), MSG_DONTWAIT | MSG_PEEK) == 0) {
                 close(args->clifd);
@@ -54,7 +47,7 @@ static void *server_thread_run(void *vargp) {
                     sgame_remove_snake(args->slot);
                     break;
                 }
-                //printf("message (%d) %ld bytes: %.*s\n", clifd, size, (int)size, buf);
+                //printf("message (%d) %ld bytes: %.*s\n", args->clifd, size, (int)size, buf);
                 server_msg_t *msg = malloc(sizeof(server_msg_t) + size);
                 msg->slot = args->slot;
                 msg->size = size;
@@ -74,22 +67,22 @@ void server_init() {
     }
 }
 
-void server_start() {
+void server_start(int port) {
     printf("start server...\n");
 
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    err_check(sockfd, "failed socket creation");
+    utils_err_check(sockfd, "failed socket creation");
 
-    err_check(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)), "failed socket opt REUSEADDR");
+    utils_err_check(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)), "failed socket opt REUSEADDR");
 
     struct sockaddr_in servaddr = {0};
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(SERVER_PORT);
+    servaddr.sin_port = htons(port);
 
-    err_check(bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)), "failed socket bind");
+    utils_err_check(bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)), "failed socket bind");
 
-    err_check(listen(sockfd, 64), "failed socket listen");
+    utils_err_check(listen(sockfd, 64), "failed socket listen");
 
     while (true) {
         struct sockaddr_in cliaddr = {0};
@@ -109,7 +102,7 @@ void server_start() {
         }
         if (i >= SERVER_MAX_CLIENTS) {
             printf("refused\n");
-            err_check(close(args->clifd), "failed client close");
+            utils_err_check(close(args->clifd), "failed client close");
         } else {
             printf("accepted slot %d\n", i);
 

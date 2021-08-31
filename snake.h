@@ -10,7 +10,8 @@ typedef enum {
     SNAKE_DIRECTION_UP,
     SNAKE_DIRECTION_DOWN,
     SNAKE_DIRECTION_RIGHT,
-    SNAKE_DIRECTION_LEFT
+    SNAKE_DIRECTION_LEFT,
+    SNAKE_DIRECTION_N
 } snake_direction_t;
 
 typedef struct {

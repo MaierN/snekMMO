@@ -24,6 +24,6 @@ typedef struct {
 } server_msg_t;
 
 void server_init();
-void server_start();
+void server_start(int port);
 
 #endif

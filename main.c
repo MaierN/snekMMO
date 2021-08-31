@@ -13,72 +13,53 @@
 #include "server/server.h"
 #include "server/sgame.h"
 #include "display.h"
+#include "client/client.h"
+#include "utils.h"
 
-bool running = true;
-int extend = 0;
+#define BUFSIZE 128
 
-int message = 0;
-
-snake_t the_snake;
-
-void *input_thread_run(void *vargp) {
-    (void)vargp;
-    while (running) {
-
-        char c = getchar();
-        if (c == 27) {
-            getchar();
-            c = getchar();
-            if (c == 65) snake_control_direction(&the_snake, SNAKE_DIRECTION_UP);
-            if (c == 66) snake_control_direction(&the_snake, SNAKE_DIRECTION_DOWN);
-            if (c == 67) snake_control_direction(&the_snake, SNAKE_DIRECTION_RIGHT);
-            if (c == 68) snake_control_direction(&the_snake, SNAKE_DIRECTION_LEFT);
-        }
-        if (c == 'q') {
-            running = false;
-            message = 2;
-            break;
-        }
-
-        fflush(stdout);
-    }
-    return NULL;
-}
-
-int main() {
+int main(int argc, char **argv) {
     srand(time(NULL));
 
-    sgame_start();
-
-    server_start();
-    exit(0);
-
-    snake_init(&the_snake);
-
-    static struct termios oldt, newt;
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-
-    newt.c_lflag &= ~ICANON;
-    newt.c_lflag &= ~ECHO;
-    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
-
-    display_clear();
-
-    pthread_t input_thread_id;
-    pthread_create(&input_thread_id, NULL, input_thread_run, NULL);
-
-    while (running) {
+    int opt;
+    char port_s[BUFSIZE+1] = {0};
+    char addr[BUFSIZE+1] = {0};
+    bool has_port = false;
+    bool has_addr = false;
+    while ((opt = getopt(argc, argv, "i:p:")) != -1) {
+        switch (opt) {
+            case 'i':
+                has_addr = true;
+                snprintf(addr, BUFSIZE, "%s", optarg);
+                break;
+            case 'p':
+                has_port = true;
+                snprintf(port_s, BUFSIZE, "%s", optarg);
+                break;
+        }
+    }
+    if (!has_port) {
+        printf("Usage: %s [-i address] [-p port]\n", argv[0]);
+        printf("Examples: %s -i localhost -p 21337 #connects client to specified server\n", argv[0]);
+        printf("          %s -p 21337              #starts server on specified port\n", argv[0]);
+        exit(0);
     }
 
-    pthread_cancel(input_thread_id);
+    utils_init_terminal();
 
-    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
+    int port = strtol(port_s, NULL, 10);
 
-    if (message == 1) {
-        printf("\nGAME OVER\n");
-    } else if (message == 2) {
-        printf("\nEXIT\n");
+    if (has_addr) {
+        utils_setup_terminal();
+
+        display_clear();
+        client_start(addr, port);
+
+        utils_restore_terminal();
+    } else {
+        server_init();
+        sgame_start();
+        server_start(port);
     }
 
     return 0;
