@@ -9,11 +9,13 @@ jobs:
   build_job:
     name: Build with CMake
     runs-on: ${{ matrix.os }}
-    matrix:
-      os: [ubuntu-latest]
-      include:
-        - os: ubuntu-latest
-          triplet: x64-linux
+    stratey:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        include:
+          - os: ubuntu-latest
+            triplet: x64-linux
     steps:
       - uses: actions/checkout@v2
       - name: Dump GitHub context
