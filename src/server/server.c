@@ -14,48 +14,30 @@
 #include "../queue.h"
 #include "sgame.h"
 #include "../utils.h"
-
-#define SERVER_BUF_SIZE 1024
+#include "../client/client.h"
 
 typedef struct {
     int clifd;
     int slot;
 } server_thread_args;
 
+static void server_message_callback(uint8_t *buf, size_t size, void *arg) {
+    server_msg_t *msg = malloc(sizeof(server_msg_t) + size);
+    msg->slot = *(int *)arg;
+    msg->size = size;
+    memcpy(msg->buf, buf, size);
+    queue_enqueue(&server_queue_in, msg);
+}
+
+static void server_close_callback(void *arg) {
+    sgame_remove_snake(*(int *)arg);
+    sgame_render_all();
+}
+
 static void *server_thread_run(void *vargp) {
     server_thread_args *args = (server_thread_args *)vargp;
-    uint8_t buf[SERVER_BUF_SIZE];
 
-    struct pollfd pfd;
-	pfd.fd = args->clifd;
-	pfd.events = POLLIN | POLLHUP | POLLRDNORM;
-	pfd.revents = 0;
-	while (true) {
-        int status = poll(&pfd, 1, 100);
-        utils_err_check(status, "failed socket poll");
-		if (status > 0) {
-            if (recv(args->clifd, buf, sizeof(buf), MSG_DONTWAIT | MSG_PEEK) == 0) {
-                close(args->clifd);
-                printf("socket (%d) closed 1\n", args->clifd);
-                sgame_remove_snake(args->slot);
-                break;
-            } else {
-                ssize_t size = recv(args->clifd, buf, sizeof(buf), 0);
-                if (size == -1) {
-                    close(args->clifd);
-                    printf("socket (%d) closed 2\n", args->clifd);
-                    sgame_remove_snake(args->slot);
-                    break;
-                }
-                //printf("message (%d) %ld bytes: %.*s\n", args->clifd, size, (int)size, buf);
-                server_msg_t *msg = malloc(sizeof(server_msg_t) + size);
-                msg->slot = args->slot;
-                msg->size = size;
-                memcpy(msg->buf, buf, size);
-                queue_enqueue(&server_queue_in, msg);
-            }
-        }
-    }
+    client_handle_messages(args->clifd, server_message_callback, server_close_callback, &args->slot);
 
     return NULL;
 }
@@ -102,7 +84,7 @@ void server_start(int port) {
         }
         if (i >= SERVER_MAX_CLIENTS) {
             printf("refused\n");
-            utils_err_check(close(args->clifd), "failed client close");
+            utils_err_check_no_exit(close(args->clifd), "failed client close");
         } else {
             printf("accepted slot %d\n", i);
 
@@ -112,6 +94,8 @@ void server_start(int port) {
 
             pthread_t cli_thread_id;
             pthread_create(&cli_thread_id, NULL, server_thread_run, args);
+
+            sgame_render_all();
         }
     }
 }

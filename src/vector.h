@@ -13,5 +13,6 @@ void vector_init(vector_t *this);
 void vector_append(vector_t *this, void *elt);
 size_t vector_size(vector_t *this);
 void *vector_get(vector_t *this, size_t index);
+void vector_clear(vector_t *this);
 
 #endif

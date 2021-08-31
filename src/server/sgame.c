@@ -13,10 +13,57 @@
 #include "../config.h"
 #include "../point.h"
 #include "../display.h"
+#include "../utils.h"
+#include "../vector.h"
 
 pthread_mutex_t sgame_mutex;
 
 point_t apple = {.x=8, .y=8};
+
+void sgame_render_all() {
+    pthread_mutex_lock(&sgame_mutex);
+
+    display_render_game(server_clients, &apple);
+
+    uint8_t *buf = (uint8_t *)malloc(1);
+    size_t size;
+
+    for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
+        if (!server_clients[i].active) continue;
+
+        size = sizeof(point_t) * vector_size(&server_clients[i].snake.segments) + 2;
+        buf = realloc(buf, size);
+
+        for (int j = 0; j < SERVER_MAX_CLIENTS; j++) {
+            if (!server_clients[j].active) continue;
+
+            buf[0] = 0;
+            buf[1] = j;
+
+            for (size_t s = 0; s < vector_size(&server_clients[i].snake.segments); s++) {
+                *(((point_t *)(buf + 2)) + s) = *(point_t *)vector_get(&server_clients[i].snake.segments, s);
+            }
+
+            utils_err_check_no_exit(write(server_clients[j].clifd, buf, size), "failed write");
+        }
+    }
+
+    size = sizeof(point_t) + 1;
+    buf = realloc(buf, size);
+
+    for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
+        if (!server_clients[i].active) continue;
+
+        buf[0] = 1;
+        *((point_t *)(buf + 1)) = apple;
+
+        utils_err_check_no_exit(write(server_clients[i].clifd, buf, size), "failed write");
+    }
+
+    pthread_mutex_unlock(&sgame_mutex);
+
+    free(buf);
+}
 
 static void *sgame_thread_run(void *vargp) {
     (void)vargp;
@@ -83,31 +130,9 @@ static void *sgame_thread_run(void *vargp) {
             }
         }
 
-        for (int c = 0; c < CONFIG_DISPLAY_WIDTH; c++) {
-            for (int r = 0; r < CONFIG_DISPLAY_HEIGHT; r++) {
-                if (c == 0 || c == CONFIG_DISPLAY_WIDTH-1 || r == 0 || r == CONFIG_DISPLAY_HEIGHT-1) {
-                    display_write(c, r, "#");
-                } else {
-                    point_t curr = {.x=c, .y=r};
-                    bool is_snake = false;
-                    for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
-                        if (!server_clients[i].active) continue;
-                        if (snake_is_on_point(&server_clients[i].snake, &curr, false)) is_snake = true;
-                    }
-                    if (is_snake) {
-                        display_write(c, r, "x");
-                    } else if (c == apple.x && r == apple.y) {
-                        display_write(c, r, "o");
-                    } else {
-                        display_write(c, r, " ");
-                    }
-                }
-            }
-        }
-
-        display_show(0, CONFIG_DISPLAY_HEIGHT);
-
         pthread_mutex_unlock(&sgame_mutex);
+
+        sgame_render_all();
 
         usleep(1000 * 1000);
     }

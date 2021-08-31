@@ -27,3 +27,7 @@ size_t vector_size(vector_t *this) {
 void *vector_get(vector_t *this, size_t index) {
     return this->array[index];
 }
+
+void vector_clear(vector_t *this) {
+    this->size = 0;
+}
