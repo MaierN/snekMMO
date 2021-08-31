@@ -9,7 +9,7 @@ jobs:
   build_job:
     name: Build with CMake
     runs-on: ${{ matrix.os }}
-    stratey:
+    strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
