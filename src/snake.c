@@ -62,13 +62,6 @@ void snake_step(snake_t *this) {
     //printf("new head: %d %d\n", head->x, head->y);
 }
 
-void snake_display(snake_t *this) {
-    for (int i = vector_size(&this->segments)-1; i >= 0; i--) {
-        point_t *curr = (point_t *)vector_get(&this->segments, i);
-        display_write(curr->x, curr->y, "x");
-    }
-}
-
 void snake_extend(snake_t *this) {
     this->extend = true;
 }
