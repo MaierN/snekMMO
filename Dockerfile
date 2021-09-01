@@ -1,5 +1,16 @@
 # syntax=docker/dockerfile:1
-FROM snek_base AS ubuntu-builder
+
+FROM ubuntu:20.04
+RUN apt update
+RUN apt install -y make cmake g++ openssh-server
+
+RUN useradd snek -s /snek/client.sh -p '*'
+RUN mkdir /home/snek
+RUN passwd -d snek
+RUN echo "Match User snek" >> /etc/ssh/sshd_config
+RUN echo "    PasswordAuthentication yes" >> /etc/ssh/sshd_config
+RUN echo "    PermitEmptyPasswords yes" >> /etc/ssh/sshd_config
+
 COPY . /snek
 WORKDIR /snek
 RUN mkdir build
@@ -7,5 +18,4 @@ WORKDIR /snek/build
 RUN cmake ..
 RUN cmake --build .
 
-FROM ubuntu-builder AS ubuntu-runner
 CMD service ssh start ; /snek/build/snekMMO -p 21337 > snekLog.txt
