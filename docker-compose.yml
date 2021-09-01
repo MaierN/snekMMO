@@ -1,0 +1,9 @@
+version: "3.9"
+services:
+  base:
+    build: ./docker_base
+  snekmmo:
+    build: .
+    ports:
+      - "40000:22"
+    depends_on: [base]

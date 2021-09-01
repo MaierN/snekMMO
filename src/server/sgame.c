@@ -137,7 +137,7 @@ static void *sgame_thread_run(void *vargp) {
 
         sgame_render_all();
 
-        usleep(1000 * 1000);
+        usleep(1000 * 220);
     }
     return NULL;
 }

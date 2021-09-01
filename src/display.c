@@ -9,12 +9,12 @@ void display_clear() {
 }
 
 void display_write(int x, int y, char* text) {
-    x += 40;
+    x *= 2;
     printf("\033[%d;%dH%s", y+1, x+1, text);
+    printf("\033[%d;%dH%s", y+1, x+2, " ");
 }
 
 void display_show(int x, int y) {
-    x += 40;
     printf("\033[%d;%dH", y+1, x+1);
     fflush(stdout);
 }

@@ -6,7 +6,7 @@
 #include "../queue.h"
 #include "../snake.h"
 
-#define SERVER_MAX_CLIENTS 16
+#define SERVER_MAX_CLIENTS 32
 
 typedef struct {
     bool active;
