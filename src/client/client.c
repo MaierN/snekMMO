@@ -27,7 +27,7 @@ server_client_t client_snakes[SERVER_MAX_CLIENTS];
 static void client_message_callback(uint8_t *buf, size_t size, void *arg) {
     (void)arg;
 
-    printf("client received message of size %ld\n", size);
+    //printf("client received message of size %ld\n", size);
 
     if (buf[0] == 0) {
         uint8_t r_slot = buf[1];
@@ -142,7 +142,7 @@ void client_handle_messages(int fd, client_message_callback_t callback, client_c
 }
 
 void client_start(char *addr, int port) {
-    printf("client start (addr: %s, port: %d)...\n", addr, port);
+    //printf("client start (addr: %s, port: %d)...\n", addr, port);
 
     for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
         client_snakes[i] = (server_client_t){0};
@@ -156,7 +156,7 @@ void client_start(char *addr, int port) {
         exit(1);
     }
     struct in_addr **addr_list = (struct in_addr **)he->h_addr_list;
-    printf("ip: %s\n", inet_ntoa(*addr_list[0]));
+    //printf("ip: %s\n", inet_ntoa(*addr_list[0]));
 
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     utils_err_check(sockfd, "failed socket creation");

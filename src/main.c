@@ -19,7 +19,6 @@
 #define BUFSIZE 128
 
 int main(int argc, char **argv) {
-    printf("test\n");
     srand(time(NULL));
 
     int opt;
