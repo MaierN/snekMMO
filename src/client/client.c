@@ -76,6 +76,12 @@ static void *client_input_thread_run(void *vargp) {
             if (c == 67) buf[2] = SNAKE_DIRECTION_RIGHT;
             if (c == 68) buf[2] = SNAKE_DIRECTION_LEFT;
         }
+
+        if (c == 'w') buf[2] = SNAKE_DIRECTION_UP;
+        if (c == 's') buf[2] = SNAKE_DIRECTION_DOWN;
+        if (c == 'd') buf[2] = SNAKE_DIRECTION_RIGHT;
+        if (c == 'a') buf[2] = SNAKE_DIRECTION_LEFT;
+
         if (c == 'q') {
             running = false;
         }
