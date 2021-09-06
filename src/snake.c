@@ -17,8 +17,8 @@ static bool is_opposite_direction(snake_direction_t a, snake_direction_t b) {
     return (a == SNAKE_DIRECTION_RIGHT && b == SNAKE_DIRECTION_LEFT) || (a == SNAKE_DIRECTION_UP && b == SNAKE_DIRECTION_DOWN);
 }
 
-void snake_init(snake_t *this, bool empty) {
-    vector_init(&this->segments);
+void snake_init(snake_t *self, bool empty) {
+    vector_init(&self->segments);
     if (!empty) {
         point_t *seg1 = (point_t *)malloc(sizeof(point_t));
         seg1->x = 3;
@@ -29,46 +29,46 @@ void snake_init(snake_t *this, bool empty) {
         point_t *seg3 = (point_t *)malloc(sizeof(point_t));
         seg3->x = 1;
         seg3->y = 1;
-        vector_append(&this->segments, seg1);
-        vector_append(&this->segments, seg2);
-        vector_append(&this->segments, seg3);
+        vector_append(&self->segments, seg1);
+        vector_append(&self->segments, seg2);
+        vector_append(&self->segments, seg3);
     }
-    this->direction = SNAKE_DIRECTION_RIGHT;
-    this->last_direction = SNAKE_DIRECTION_RIGHT;
-    this->extend = false;
+    self->direction = SNAKE_DIRECTION_RIGHT;
+    self->last_direction = SNAKE_DIRECTION_RIGHT;
+    self->extend = false;
 }
 
-void snake_control_direction(snake_t *this, snake_direction_t direction) {
-    if (!is_opposite_direction(this->last_direction, direction)) {
-        this->direction = direction;
+void snake_control_direction(snake_t *self, snake_direction_t direction) {
+    if (!is_opposite_direction(self->last_direction, direction)) {
+        self->direction = direction;
     }
 }
 
-void snake_step(snake_t *this) {
-    if (this->extend) {
+void snake_step(snake_t *self) {
+    if (self->extend) {
         void *new_segment = malloc(sizeof(point_t));
-        vector_append(&this->segments, new_segment);
-        this->extend = false;
+        vector_append(&self->segments, new_segment);
+        self->extend = false;
     }
-    for (int i = vector_size(&this->segments)-1; i > 0; i--) {
-        point_t *curr = (point_t *)vector_get(&this->segments, i);
-        point_t *last = (point_t *)vector_get(&this->segments, i-1);
+    for (int i = vector_size(&self->segments)-1; i > 0; i--) {
+        point_t *curr = (point_t *)vector_get(&self->segments, i);
+        point_t *last = (point_t *)vector_get(&self->segments, i-1);
         *curr = *last;
     }
-    point_t *head = (point_t *)vector_get(&this->segments, 0);
-    if (this->direction == SNAKE_DIRECTION_UP) head->y--;
-    if (this->direction == SNAKE_DIRECTION_DOWN) head->y++;
-    if (this->direction == SNAKE_DIRECTION_RIGHT) head->x++;
-    if (this->direction == SNAKE_DIRECTION_LEFT) head->x--;
-    this->last_direction = this->direction;
+    point_t *head = (point_t *)vector_get(&self->segments, 0);
+    if (self->direction == SNAKE_DIRECTION_UP) head->y--;
+    if (self->direction == SNAKE_DIRECTION_DOWN) head->y++;
+    if (self->direction == SNAKE_DIRECTION_RIGHT) head->x++;
+    if (self->direction == SNAKE_DIRECTION_LEFT) head->x--;
+    self->last_direction = self->direction;
 }
 
-void snake_extend(snake_t *this) {
-    this->extend = true;
+void snake_extend(snake_t *self) {
+    self->extend = true;
 }
 
-bool snake_is_game_over(snake_t *this, int slot) {
-    point_t *head = (point_t *)vector_get(&this->segments, 0);
+bool snake_is_game_over(snake_t *self, int slot) {
+    point_t *head = (point_t *)vector_get(&self->segments, 0);
     if (head->x == 0 || head->y == 0 || head->x == CONFIG_DISPLAY_WIDTH-1 || head->y == CONFIG_DISPLAY_HEIGHT-1) {
         return true;
     }
@@ -81,9 +81,9 @@ bool snake_is_game_over(snake_t *this, int slot) {
     return false;
 }
 
-bool snake_is_on_point(snake_t *this, point_t *point, bool ignore_head) {
-    for (int i = vector_size(&this->segments)-1; i >= ignore_head ? 1 : 0; i--) {
-        point_t *curr = (point_t *)vector_get(&this->segments, i);
+bool snake_is_on_point(snake_t *self, point_t *point, bool ignore_head) {
+    for (int i = vector_size(&self->segments)-1; i >= ignore_head ? 1 : 0; i--) {
+        point_t *curr = (point_t *)vector_get(&self->segments, i);
         if (point->x == curr->x && point->y == curr->y) {
             return true;
         }
@@ -91,9 +91,9 @@ bool snake_is_on_point(snake_t *this, point_t *point, bool ignore_head) {
     return false;
 }
 
-void snake_delete(snake_t *this) {
-    for (size_t i = 0; i < vector_size(&this->segments); i++) {
-        free(vector_get(&this->segments, i));
+void snake_delete(snake_t *self) {
+    for (size_t i = 0; i < vector_size(&self->segments); i++) {
+        free(vector_get(&self->segments, i));
     }
-    vector_delete(&this->segments);
+    vector_delete(&self->segments);
 }

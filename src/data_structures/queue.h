@@ -17,9 +17,9 @@ typedef struct {
     pthread_mutex_t mutex;
 } queue_t;
 
-void queue_init(queue_t *this);
-void queue_enqueue(queue_t *this, void *elt);
-void *queue_dequeue(queue_t *this);
-bool queue_empty(queue_t *this);
+void queue_init(queue_t *self);
+void queue_enqueue(queue_t *self, void *elt);
+void *queue_dequeue(queue_t *self);
+bool queue_empty(queue_t *self);
 
 #endif

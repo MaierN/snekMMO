@@ -87,9 +87,9 @@ void server_start(int port) {
     new_action.sa_handler = server_alrm_handler;
     sigaction(SIGALRM, &new_action, NULL);
 
-    pthread_t this_thread = pthread_self();
+    pthread_t self_thread = pthread_self();
     pthread_t input_thread_id;
-    pthread_create(&input_thread_id, NULL, server_input_thread_run, &this_thread);
+    pthread_create(&input_thread_id, NULL, server_input_thread_run, &self_thread);
 
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     utils_err_check(sockfd, "failed socket creation");
