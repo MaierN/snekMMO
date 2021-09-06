@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <netdb.h>
+#include <signal.h>
 
 #include "../snake.h"
 #include "../utils.h"
@@ -19,8 +20,6 @@
 
 #define CLIENT_BUF_RECV_SIZE 1024
 #define CLIENT_BUF_SEND_SIZE 16
-
-bool running = true;
 
 server_client_t client_snakes[SERVER_MAX_CLIENTS];
 
@@ -35,7 +34,8 @@ static void client_message_callback(uint8_t *buf, size_t size, void *arg) {
 
         int n = (size - 3) / sizeof(point_t);
 
-        vector_clear(&client_snakes[r_slot].snake.segments);
+        snake_delete(&client_snakes[r_slot].snake);
+        snake_init(&client_snakes[r_slot].snake, true);
         for (int i = 0; i < n; i++) {
             point_t *point = (point_t *)malloc(sizeof(point_t));
             *point = *((point_t *)(buf + 3) + i);
@@ -56,40 +56,56 @@ static void client_message_callback(uint8_t *buf, size_t size, void *arg) {
 
 static void client_close_callback(void *arg) {
     (void)arg;
+    running = false;
 }
 
 static void *client_input_thread_run(void *vargp) {
     int sockfd = *(int*)vargp;
 
     uint8_t buf[CLIENT_BUF_SEND_SIZE];
+    uint8_t char_buf[1];
+
+    struct pollfd pfd;
+    pfd.fd = STDIN_FILENO;
+    pfd.events = POLLIN | POLLHUP;
+    pfd.revents = 0;
 
     while (running) {
         *(uint16_t *)buf = 3;
         buf[2] = 0xff;
 
-        char c = getchar();
-        if (c == 27) {
-            getchar();
-            c = getchar();
-            if (c == 65) buf[2] = SNAKE_DIRECTION_UP;
-            if (c == 66) buf[2] = SNAKE_DIRECTION_DOWN;
-            if (c == 67) buf[2] = SNAKE_DIRECTION_RIGHT;
-            if (c == 68) buf[2] = SNAKE_DIRECTION_LEFT;
+        if (poll(&pfd, 1, 100) && (pfd.revents & POLLIN)) {
+            read(STDIN_FILENO, char_buf, 1);
+            if (char_buf[0] == 27) {
+                if (poll(&pfd, 1, 100) && (pfd.revents & POLLIN)) {
+                    read(STDIN_FILENO, char_buf, 1);
+                    if (poll(&pfd, 1, 100) && pfd.revents & POLLIN) {
+                        read(STDIN_FILENO, char_buf, 1);
+                        if (char_buf[0] == 65) buf[2] = SNAKE_DIRECTION_UP;
+                        if (char_buf[0] == 66) buf[2] = SNAKE_DIRECTION_DOWN;
+                        if (char_buf[0] == 67) buf[2] = SNAKE_DIRECTION_RIGHT;
+                        if (char_buf[0] == 68) buf[2] = SNAKE_DIRECTION_LEFT;
+                    }
+                }
+            }
+
+            if (char_buf[0] == 'w') buf[2] = SNAKE_DIRECTION_UP;
+            if (char_buf[0] == 's') buf[2] = SNAKE_DIRECTION_DOWN;
+            if (char_buf[0] == 'd') buf[2] = SNAKE_DIRECTION_RIGHT;
+            if (char_buf[0] == 'a') buf[2] = SNAKE_DIRECTION_LEFT;
+
+            if (char_buf[0] == 'q') {
+                running = false;
+            }
         }
 
-        if (c == 'w') buf[2] = SNAKE_DIRECTION_UP;
-        if (c == 's') buf[2] = SNAKE_DIRECTION_DOWN;
-        if (c == 'd') buf[2] = SNAKE_DIRECTION_RIGHT;
-        if (c == 'a') buf[2] = SNAKE_DIRECTION_LEFT;
-
-        if (c == 'q') {
-            running = false;
-        }
 
         if (buf[2] != 0xff) {
             utils_err_check(write(sockfd, buf, 3), "failed write");
         }
     }
+
+    fprintf(stderr, "client input thread terminated...\n");
     return NULL;
 }
 
@@ -103,25 +119,25 @@ void client_handle_messages(int fd, client_message_callback_t callback, client_c
 	pfd.fd = fd;
 	pfd.events = POLLIN | POLLHUP | POLLRDNORM;
 	pfd.revents = 0;
-	while (true) {
+	while (running) {
         int status = poll(&pfd, 1, 100);
         utils_err_check_no_exit(status, "failed socket poll");
 		if (status > 0) {
             if (recv(fd, buf, sizeof(buf), MSG_DONTWAIT | MSG_PEEK) == 0) {
                 close(fd);
-                printf("socket (%d) closed 1\n", fd);
+                fprintf(stderr, "socket (%d) closed 1\n", fd);
                 close_callback(arg);
                 break;
             } else {
                 ssize_t size = recv(fd, buf, sizeof(buf), 0);
                 if (size == -1) {
                     close(fd);
-                    printf("socket (%d) closed 2\n", fd);
+                    fprintf(stderr, "socket (%d) closed 2\n", fd);
                     close_callback(arg);
                     break;
                 }
 
-                received_data = realloc(received_data, received_size + size);
+                received_data = (uint8_t *)realloc(received_data, received_size + size);
 
                 for (int i = 0; i < size; i++) {
                     received_data[i + received_size] = buf[i];
@@ -145,6 +161,8 @@ void client_handle_messages(int fd, client_message_callback_t callback, client_c
             }
         }
     }
+
+    free(received_data);
 }
 
 void client_start(char *addr, int port) {
@@ -152,7 +170,7 @@ void client_start(char *addr, int port) {
 
     for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
         client_snakes[i] = (server_client_t){0};
-        snake_init(&client_snakes[i].snake);
+        snake_init(&client_snakes[i].snake, true);
     }
 
     struct hostent *he = gethostbyname(addr);
@@ -179,4 +197,9 @@ void client_start(char *addr, int port) {
 
     client_handle_messages(sockfd, client_message_callback, client_close_callback, NULL);
 
+    pthread_join(input_thread_id, NULL);
+
+    for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
+        snake_delete(&client_snakes[i].snake);
+    }
 }

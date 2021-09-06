@@ -31,3 +31,7 @@ void *vector_get(vector_t *this, size_t index) {
 void vector_clear(vector_t *this) {
     this->size = 0;
 }
+
+void vector_delete(vector_t *this) {
+    free(this->array);
+}

@@ -13,7 +13,13 @@ typedef struct {
     int clifd;
     snake_t snake;
     bool is_self;
+    pthread_t thread_id;
 } server_client_t;
+
+typedef struct {
+    int clifd;
+    int slot;
+} server_thread_args;
 
 server_client_t server_clients[SERVER_MAX_CLIENTS];
 queue_t server_queue_in;
@@ -26,5 +32,6 @@ typedef struct {
 
 void server_init();
 void server_start(int port);
+void *server_thread_run(void *vargp);
 
 #endif

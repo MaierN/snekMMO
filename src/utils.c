@@ -6,17 +6,19 @@
 #include <termios.h>
 #include <unistd.h>
 
+bool running = true;
+
 struct termios oldt, newt;
 
 void utils_err_check_no_exit(int status, char *msg) {
     if (status == -1) {
-        printf("%s (errno %d)\n", msg, errno);
+        fprintf(stderr, "%s (errno %d)\n", msg, errno);
     }
 }
 
 void utils_err_check(int status, char *msg) {
     if (status == -1) {
-        printf("%s (errno %d)\n", msg, errno);
+        fprintf(stderr, "%s (errno %d)\n", msg, errno);
         utils_restore_terminal();
         exit(1);
     }

@@ -34,7 +34,9 @@ void *queue_dequeue(queue_t *this) {
         this->tail = NULL;
     }
     void *elt = this->head->elt;
-    this->head = this->head->to_tail;
+    queue_elt_t *new_head = this->head->to_tail;
+    free(this->head);
+    this->head = new_head;
     if (this->head != NULL) {
         this->head->to_head = NULL;
     }
@@ -45,5 +47,8 @@ void *queue_dequeue(queue_t *this) {
 }
 
 bool queue_empty(queue_t *this) {
-    return this->head == NULL;
+    pthread_mutex_lock(&this->mutex);
+    bool res = this->head == NULL;
+    pthread_mutex_unlock(&this->mutex);
+    return res;
 }

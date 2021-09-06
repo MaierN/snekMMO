@@ -32,7 +32,7 @@ void sgame_render_all() {
         if (!server_clients[i].active) continue;
 
         size = sizeof(point_t) * vector_size(&server_clients[i].snake.segments) + 2 + 2 + 1;
-        buf = realloc(buf, size);
+        buf = (uint8_t *)realloc(buf, size);
 
         for (int j = 0; j < SERVER_MAX_CLIENTS; j++) {
             if (!server_clients[j].active) continue;
@@ -70,12 +70,13 @@ void sgame_render_all() {
 
 static void *sgame_thread_run(void *vargp) {
     (void)vargp;
-    while (true) {
+    while (running) {
         pthread_mutex_lock(&sgame_mutex);
 
         printf("game step...\n");
         while (!queue_empty(&server_queue_in)) {
             server_msg_t *msg = queue_dequeue(&server_queue_in);
+
             printf("sgame got message from %d:", msg->slot);
             for (uint32_t i = 0; i < msg->size; i++) {
                 printf(" %d", msg->buf[i]);
@@ -85,6 +86,8 @@ static void *sgame_thread_run(void *vargp) {
             uint8_t dir = msg->buf[0];
             if (dir >= SNAKE_DIRECTION_N) continue;
             snake_control_direction(&server_clients[msg->slot].snake, dir);
+
+            free(msg);
         }
 
         for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
@@ -106,6 +109,9 @@ static void *sgame_thread_run(void *vargp) {
                 server_clients[i].active = false;
                 printf("GAME OVER %d\n", i);
                 close(server_clients[i].clifd);
+                //pthread_mutex_unlock(&sgame_mutex);
+                //pthread_join(server_clients[i].thread_id, NULL);
+                //pthread_mutex_lock(&sgame_mutex);
             }
         }
 
@@ -139,6 +145,8 @@ static void *sgame_thread_run(void *vargp) {
 
         usleep(1000 * 220);
     }
+
+    fprintf(stderr, "sgame thread terminated...\n");
     return NULL;
 }
 
@@ -148,16 +156,23 @@ void sgame_start() {
     pthread_create(&sgame_thread_id, NULL, sgame_thread_run, NULL);
 }
 
-void sgame_add_snake(int slot, int clifd) {
+void sgame_add_snake(int slot, server_thread_args *args) {
     pthread_mutex_lock(&sgame_mutex);
+
     server_clients[slot].active = true;
-    server_clients[slot].clifd = clifd;
-    snake_init(&server_clients[slot].snake);
+    server_clients[slot].clifd = args->clifd;
+    snake_init(&server_clients[slot].snake, false);
+
+    pthread_t thread_id;
+    pthread_create(&thread_id, NULL, server_thread_run, args);
+    server_clients[slot].thread_id = thread_id;
+
     pthread_mutex_unlock(&sgame_mutex);
 }
 
 void sgame_remove_snake(int slot) {
     pthread_mutex_lock(&sgame_mutex);
     server_clients[slot].active = false;
+    pthread_join(server_clients[slot].thread_id, NULL);
     pthread_mutex_unlock(&sgame_mutex);
 }
