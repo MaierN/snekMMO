@@ -17,6 +17,7 @@
 #include "../server/server.h"
 #include "../display.h"
 #include "../data_structures/vector.h"
+#include "../config.h"
 
 #define CLIENT_BUF_RECV_SIZE 1024
 #define CLIENT_BUF_SEND_SIZE 16
@@ -25,8 +26,6 @@ server_client_t client_snakes[SERVER_MAX_CLIENTS];
 
 static void client_message_callback(uint8_t *buf, size_t size, void *arg) {
     (void)arg;
-
-    //printf("client received message of size %ld\n", size);
 
     if (buf[0] == 0) {
         uint8_t r_slot = buf[1];
@@ -105,7 +104,7 @@ static void *client_input_thread_run(void *vargp) {
         }
     }
 
-    fprintf(stderr, "client input thread terminated...\n");
+    if (DEBUG) fprintf(stderr, "client input thread terminated...\n");
     return NULL;
 }
 
@@ -125,14 +124,14 @@ void client_handle_messages(int fd, client_message_callback_t callback, client_c
 		if (status > 0) {
             if (recv(fd, buf, sizeof(buf), MSG_DONTWAIT | MSG_PEEK) == 0) {
                 close(fd);
-                fprintf(stderr, "socket (%d) closed 1\n", fd);
+                if (DEBUG) fprintf(stderr, "socket (%d) closed 1\n", fd);
                 close_callback(arg);
                 break;
             } else {
                 ssize_t size = recv(fd, buf, sizeof(buf), 0);
                 if (size == -1) {
                     close(fd);
-                    fprintf(stderr, "socket (%d) closed 2\n", fd);
+                    if (DEBUG) fprintf(stderr, "socket (%d) closed 2\n", fd);
                     close_callback(arg);
                     break;
                 }
@@ -166,7 +165,6 @@ void client_handle_messages(int fd, client_message_callback_t callback, client_c
 }
 
 void client_start(char *addr, int port) {
-    //printf("client start (addr: %s, port: %d)...\n", addr, port);
 
     for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
         client_snakes[i] = (server_client_t){0};
@@ -175,12 +173,11 @@ void client_start(char *addr, int port) {
 
     struct hostent *he = gethostbyname(addr);
     if (he == NULL || !(struct in_addr **)he->h_addr_list[0]) {
-        printf("host not found\n");
         utils_restore_terminal();
+        fprintf(stderr, "host not found\n");
         exit(1);
     }
     struct in_addr **addr_list = (struct in_addr **)he->h_addr_list;
-    //printf("ip: %s\n", inet_ntoa(*addr_list[0]));
 
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     utils_err_check(sockfd, "failed socket creation");

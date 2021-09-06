@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "../data_structures/queue.h"
 #include "server.h"
@@ -16,7 +17,10 @@
 #include "../utils.h"
 #include "../data_structures/vector.h"
 
+pthread_t sgame_thread_id;
 pthread_mutex_t sgame_mutex;
+
+queue_t old_threads;
 
 point_t apple = {.x=8, .y=8};
 
@@ -51,7 +55,7 @@ void sgame_render_all() {
     }
 
     size = sizeof(point_t) + 1 + 2;
-    buf = realloc(buf, size);
+    buf = (uint8_t *)realloc(buf, size);
 
     for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
         if (!server_clients[i].active) continue;
@@ -68,20 +72,31 @@ void sgame_render_all() {
     free(buf);
 }
 
+static void join_old_threads() {
+    while (!queue_empty(&old_threads)) {
+        pthread_t *id = (pthread_t *)queue_dequeue(&old_threads);
+        if (DEBUG) fprintf(stderr, "joining %ld\n", *id);
+        pthread_join(*id, NULL);
+        free(id);
+    }
+}
+
 static void *sgame_thread_run(void *vargp) {
     (void)vargp;
     while (running) {
         pthread_mutex_lock(&sgame_mutex);
 
-        printf("game step...\n");
-        while (!queue_empty(&server_queue_in)) {
-            server_msg_t *msg = queue_dequeue(&server_queue_in);
+        join_old_threads();
 
-            printf("sgame got message from %d:", msg->slot);
+        if (DEBUG) fprintf(stderr, "game step...\n");
+        while (!queue_empty(&server_queue_in)) {
+            server_msg_t *msg = (server_msg_t *)queue_dequeue(&server_queue_in);
+
+            if (DEBUG) fprintf(stderr, "sgame got message from %d:", msg->slot);
             for (uint32_t i = 0; i < msg->size; i++) {
-                printf(" %d", msg->buf[i]);
+                if (DEBUG) fprintf(stderr, " %d", msg->buf[i]);
             }
-            printf("\n");
+            if (DEBUG) fprintf(stderr, "\n");
             if (msg->size == 0) continue;
             uint8_t dir = msg->buf[0];
             if (dir >= SNAKE_DIRECTION_N) continue;
@@ -107,7 +122,7 @@ static void *sgame_thread_run(void *vargp) {
         for (int i = 0; i < SERVER_MAX_CLIENTS; i++) {
             if (to_game_over[i]) {
                 server_clients[i].active = false;
-                printf("GAME OVER %d\n", i);
+                if (DEBUG) fprintf(stderr, "GAME OVER %d\n", i);
                 close(server_clients[i].clifd);
                 //pthread_mutex_unlock(&sgame_mutex);
                 //pthread_join(server_clients[i].thread_id, NULL);
@@ -120,7 +135,7 @@ static void *sgame_thread_run(void *vargp) {
             if (snake_is_on_point(&server_clients[i].snake, &apple, false)) {
                 snake_extend(&server_clients[i].snake);
                 for (int i = 0; i < 5; i++) {
-                    printf("%d extending...\n", i);
+                    if (DEBUG) fprintf(stderr, "%d extending...\n", i);
                 }
 
                 bool apple_ok = false;
@@ -146,33 +161,44 @@ static void *sgame_thread_run(void *vargp) {
         usleep(1000 * 220);
     }
 
-    fprintf(stderr, "sgame thread terminated...\n");
+    join_old_threads();
+
+    if (DEBUG) fprintf(stderr, "sgame thread terminated...\n");
     return NULL;
 }
 
 void sgame_start() {
+    queue_init(&old_threads);
     pthread_mutex_init(&sgame_mutex, NULL);
-    pthread_t sgame_thread_id;
     pthread_create(&sgame_thread_id, NULL, sgame_thread_run, NULL);
+}
+
+void sgame_stop() {
+    pthread_join(sgame_thread_id, NULL);
 }
 
 void sgame_add_snake(int slot, server_thread_args *args) {
     pthread_mutex_lock(&sgame_mutex);
+    if (DEBUG) fprintf(stderr, "adding snake %d\n", slot);
 
     server_clients[slot].active = true;
     server_clients[slot].clifd = args->clifd;
     snake_init(&server_clients[slot].snake, false);
 
-    pthread_t thread_id;
-    pthread_create(&thread_id, NULL, server_thread_run, args);
-    server_clients[slot].thread_id = thread_id;
+    pthread_create(&server_clients[slot].thread_id, NULL, server_thread_run, args);
+    if (DEBUG) fprintf(stderr, "created %ld\n", server_clients[slot].thread_id);
 
     pthread_mutex_unlock(&sgame_mutex);
 }
 
 void sgame_remove_snake(int slot) {
     pthread_mutex_lock(&sgame_mutex);
+    if (DEBUG) fprintf(stderr, "removing snake %d\n", slot);
     server_clients[slot].active = false;
-    pthread_join(server_clients[slot].thread_id, NULL);
+    close(server_clients[slot].clifd);
+    pthread_t *thread_id = (pthread_t *)malloc(sizeof(pthread_t));
+    *thread_id = server_clients[slot].thread_id;
+    queue_enqueue(&old_threads, thread_id);
+    snake_delete(&server_clients[slot].snake);
     pthread_mutex_unlock(&sgame_mutex);
 }

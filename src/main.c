@@ -7,6 +7,7 @@
 #include <sys/ioctl.h>
 #include <pthread.h>
 #include <time.h>
+#include <string.h>
 
 #include "config.h"
 #include "snake.h"
@@ -38,10 +39,16 @@ int main(int argc, char **argv) {
                 break;
         }
     }
+
     if (!has_port) {
-        printf("Usage: %s [-i address] [-p port]\n", argv[0]);
-        printf("Examples: %s -i localhost -p 21337 #connects client to specified server\n", argv[0]);
-        printf("          %s -p 21337              #starts server on specified port\n", argv[0]);
+        has_port = true;
+        strcpy(port_s, "21338");
+    }
+
+    if (!has_port) {
+        fprintf(stderr, "Usage: %s [-i address] [-p port]\n", argv[0]);
+        fprintf(stderr, "Examples: %s -i localhost -p 21337 #connects client to specified server\n", argv[0]);
+        fprintf(stderr, "          %s -p 21337              #starts server on specified port\n", argv[0]);
         exit(0);
     }
 
@@ -49,18 +56,17 @@ int main(int argc, char **argv) {
 
     int port = strtol(port_s, NULL, 10);
 
+    utils_setup_terminal();
+    display_clear();
     if (has_addr) {
-        utils_setup_terminal();
-
-        display_clear();
         client_start(addr, port);
-
-        utils_restore_terminal();
     } else {
         server_init();
         sgame_start();
         server_start(port);
+        sgame_stop();
     }
+    utils_restore_terminal();
 
     return 0;
 }
