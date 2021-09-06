@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "../queue.h"
+#include "../data_structures/queue.h"
 #include "../snake.h"
 
 #define SERVER_MAX_CLIENTS 32

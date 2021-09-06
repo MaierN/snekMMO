@@ -15,7 +15,7 @@
 #include "../utils.h"
 #include "../server/server.h"
 #include "../display.h"
-#include "../vector.h"
+#include "../data_structures/vector.h"
 
 #define CLIENT_BUF_RECV_SIZE 1024
 #define CLIENT_BUF_SEND_SIZE 16

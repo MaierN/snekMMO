@@ -7,14 +7,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../queue.h"
+#include "../data_structures/queue.h"
 #include "server.h"
 #include "../snake.h"
 #include "../config.h"
 #include "../point.h"
 #include "../display.h"
 #include "../utils.h"
-#include "../vector.h"
+#include "../data_structures/vector.h"
 
 pthread_mutex_t sgame_mutex;
 

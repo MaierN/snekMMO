@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#include "vector.h"
+#include "data_structures/vector.h"
 #include "point.h"
 
 typedef enum {

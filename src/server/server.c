@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <poll.h>
 
-#include "../queue.h"
+#include "../data_structures/queue.h"
 #include "sgame.h"
 #include "../utils.h"
 #include "../client/client.h"
