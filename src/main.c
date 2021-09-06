@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (!has_port) {
+    if (DEBUG && !has_port) {
         has_port = true;
         strcpy(port_s, "21338");
     }

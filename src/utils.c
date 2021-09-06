@@ -38,5 +38,6 @@ void utils_setup_terminal() {
 }
 
 void utils_restore_terminal() {
+    printf("\033[0m\n");
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 }
